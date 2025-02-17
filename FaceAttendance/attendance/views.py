@@ -94,7 +94,6 @@ def mark_attendance(request):
             if True in matches and blink_detected:
                 first_match_index = matches.index(True)
                 name = known_face_names[first_match_index]
-
                 try:
                     attendance = Attendance.objects.create(user_id='001', time_in=timezone.now())
                     print(f"Attendance marked at {attendance.time_in}")
@@ -350,42 +349,3 @@ def live_camera_feed(request):
     
     cap.release()
     return JsonResponse({"status": "no_match"})
-
-
-
-# Function to Encode and Save Face
-
-
-# import face_recognition
-# import numpy as np
-# from django.shortcuts import render, redirect
-# from .models import Employee
-# from django.core.files.base import ContentFile
-# import base64
-# from PIL import Image
-# from io import BytesIO
-
-# def encode_face(image_path):
-#     image = face_recognition.load_image_file(image_path)
-#     encodings = face_recognition.face_encodings(image)
-#     if encodings:
-#         return encodings[0].tobytes()  # Convert encoding to bytes
-#     return None
-
-# def register_employee(request):
-#     if request.method == "POST":
-#         name = request.POST['name']
-#         emp_id = request.POST['emp_id']
-#         image = request.FILES['image']
-        
-#         # Save employee image temporarily to encode face
-#         new_emp = Employee(name=name, emp_id=emp_id, image=image)
-#         new_emp.save()
-        
-#         encoding = encode_face(new_emp.image.path)
-#         if encoding:
-#             new_emp.face_encoding = encoding
-#             new_emp.save()
-        
-#         return redirect('home')
-#     return render(request, 'register.html')
