@@ -7,57 +7,58 @@ import numpy as np
 from django.contrib.auth.models import User
 from .models import Employee, Attendance
 from django.utils import timezone  # Import timezone for time management
-# import dlib
+import dlib
+from imutils import face_utils
+import os
 
 
-def generate_and_store_face_encoding(request):
-    employees = Employee.objects.all()
 
-    for employee in employees:
-        try:
-            # Assuming 'image' is the file field of Employee model
-            image_path = employee.image.path
-            # Load the image from the file path
-            image = face_recognition.load_image_file(image_path)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Get the directory of views.py
+PREDICTOR_PATH = os.path.join(BASE_DIR, "shape_predictor_68_face_landmarks.dat")
 
-            # Generate face encodings for the image (assuming one face per image)
-            face_encodings = face_recognition.face_encodings(image)
+if not os.path.exists(PREDICTOR_PATH):
+    raise FileNotFoundError(f"File not found: {PREDICTOR_PATH}")
 
-            if face_encodings:
-                # Convert the face encoding into bytes to store in the database
-                face_encoding_bytes = face_encodings[0].tobytes()
+predictor = dlib.shape_predictor(PREDICTOR_PATH)
+# Load face detector and eye landmark predictor
+detector = dlib.get_frontal_face_detector()
+# predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")  # Download required
 
-                # Update employee with the generated face encoding
-                employee.face_encoding = face_encoding_bytes
-                employee.save()
+def eye_aspect_ratio(eye):
+    """Calculate eye aspect ratio to detect blinks"""
+    A = np.linalg.norm(eye[1] - eye[5])
+    B = np.linalg.norm(eye[2] - eye[4])
+    C = np.linalg.norm(eye[0] - eye[3])
+    return (A + B) / (2.0 * C)
 
-                print(f"Face encoding saved for {employee.name}")
-            else:
-                print(f"No face found for {employee.name}")
+def detect_blink(frame, gray, face):
+    """Detect if a person blinks"""
+    shape = predictor(gray, face)
+    shape = face_utils.shape_to_np(shape)
 
-        except Exception as e:
-            print(f"Error processing image for {employee.name}: {e}")
+    left_eye = shape[42:48]
+    right_eye = shape[36:42]
 
-    return JsonResponse({"message": "Face encodings generated and stored."})
+    left_EAR = eye_aspect_ratio(left_eye)
+    right_EAR = eye_aspect_ratio(right_eye)
+
+    ear = (left_EAR + right_EAR) / 2.0
+
+    return ear < 0.2  # If eyes closed, return True
 
 def mark_attendance(request):
-    # Capture video feed
     video_capture = cv2.VideoCapture(0)
-    
-    # Load all employee face encodings from the database
+
+    # Load employee face encodings
     employees = Employee.objects.all()
     known_face_encodings = []
     known_face_names = []
 
-    # Predefined stolen mobile photo face encoding (Example - Replace with the actual encoding of the stolen mobile photo you want to block)
-    stolen_mobile_photo_encoding = np.array([])  # Set this with the actual encoding
-
     for employee in employees:
         try:
-            # Check if the employee has a valid face encoding
             if employee.face_encoding:
                 encoding_array = np.frombuffer(employee.face_encoding, dtype=np.float64)
-                if encoding_array.size == 128:  # Ensure valid encoding size (128-dim)
+                if encoding_array.size == 128:
                     known_face_encodings.append(encoding_array)
                     known_face_names.append(employee.name)
                 else:
@@ -66,53 +67,52 @@ def mark_attendance(request):
                 print(f"No encoding for {employee.name}")
         except Exception as e:
             print(f"Error loading encoding for {employee.name}: {e}")
-        
+
+    blink_detected = False  # Track if blink is detected
+
     while True:
         ret, frame = video_capture.read()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # Find faces in the frame
+        # Detect faces
+        faces = detector(gray)
+
+        for face in faces:
+            if detect_blink(frame, gray, face):
+                blink_detected = True  # User blinked, allow attendance
+
+        # Find faces and encode
         face_locations = face_recognition.face_locations(frame)
         face_encodings = face_recognition.face_encodings(frame, face_locations)
 
         for face_encoding, face_location in zip(face_encodings, face_locations):
             matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-
-            # Convert np.True_ to native Python True
             matches = [match.item() for match in matches]
-            print("Known face names:", known_face_names)
 
             name = "Unknown"
 
-            # If a match is found, assign the name
-            if True in matches:
+            if True in matches and blink_detected:
                 first_match_index = matches.index(True)
                 name = known_face_names[first_match_index]
 
-                # Check if the face matches the stolen mobile photo encoding (block if it matches)
-                if np.array_equal(face_encoding, stolen_mobile_photo_encoding):
-                    print(f"Blocked stolen mobile photo for {name}")
-                    continue  # Skip attendance marking for this face
-
                 try:
-                    # Store attendance (mark time in)
                     attendance = Attendance.objects.create(user_id='001', time_in=timezone.now())
                     print(f"Attendance marked at {attendance.time_in}")
 
                 except Exception as e:
                     print(f"Error marking attendance for {name}: {e}")
 
-            # Draw a rectangle around the face
+            # Draw a rectangle
             top, right, bottom, left = face_location
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
-            # Label the face with the name
+            # Label face
             font = cv2.FONT_HERSHEY_DUPLEX
             cv2.putText(frame, name, (left + 6, bottom - 6), font, 0.5, (255, 255, 255), 1)
 
-        # Display the result
+        # Show video
         cv2.imshow('Video', frame)
 
-        # Break the loop if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
@@ -277,6 +277,37 @@ def mark_attendance(request):
 #     video_capture.release()
 #     cv2.destroyAllWindows()
 #     return JsonResponse({"message": "Attendance marked."})
+
+def generate_and_store_face_encoding(request):
+    employees = Employee.objects.all()
+
+    for employee in employees:
+        try:
+            # Assuming 'image' is the file field of Employee model
+            image_path = employee.image.path
+            # Load the image from the file path
+            image = face_recognition.load_image_file(image_path)
+
+            # Generate face encodings for the image (assuming one face per image)
+            face_encodings = face_recognition.face_encodings(image)
+
+            if face_encodings:
+                # Convert the face encoding into bytes to store in the database
+                face_encoding_bytes = face_encodings[0].tobytes()
+
+                # Update employee with the generated face encoding
+                employee.face_encoding = face_encoding_bytes
+                employee.save()
+
+                print(f"Face encoding saved for {employee.name}")
+            else:
+                print(f"No face found for {employee.name}")
+
+        except Exception as e:
+            print(f"Error processing image for {employee.name}: {e}")
+
+    return JsonResponse({"message": "Face encodings generated and stored."})
+
 
 def attendance_view(request):
     return render(request, 'attendance/attendance.html')
