@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Attendance</title>
+</head>
+<body>
+    <h2>Live Face Attendance</h2>
+    <video id="video" width="640" height="480" autoplay></video>
+    <script>
+        const video = document.getElementById('video');
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => video.srcObject = stream)
+            .catch(err => console.error(err));
+        
+        setInterval(() => {
+            fetch('/live_camera_feed')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        alert("Attendance marked for " + data.emp_id);
+                    }
+                });
+        }, 5000);
+    </script>
+</body>
+</html>
