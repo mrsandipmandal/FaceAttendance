@@ -12,6 +12,9 @@ from django.utils import timezone
 from django.shortcuts import render
 from .models import Employee, Attendance
 import os
+from django.http import JsonResponse
+
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PREDICTOR_PATH = os.path.join(BASE_DIR, "shape_predictor_68_face_landmarks.dat")
@@ -108,7 +111,7 @@ def generate_frames():
                     speak_text(f"Welcome {name}")
 
                     try:
-                        attendance = Attendance.objects.create(user_id='001', time_in=timezone.now())
+                        attendance = Attendance.objects.create(user_id=employee.id, time_in=timezone.now())
                         print(f"Attendance marked at {attendance.time_in}")
 
                     except Exception as e:

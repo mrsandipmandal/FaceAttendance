@@ -20,72 +20,30 @@
                     <p class="text-lg font-semibold text-gray-700">Status: <span id="recognition-status" class="text-blue-600">Waiting...</span></p>
                     <p class="text-lg font-semibold text-gray-700">Last Recognized: <span id="last-recognized" class="text-green-600">None</span></p>
                 </div>
-                
-                {% comment %} <div class="flex justify-center space-x-4">
-                    <button onclick="startAttendance()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300">
-                        Start Recognition
-                    </button>
-                    <button onclick="stopAttendance()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition duration-300">
-                        Stop Recognition
-                    </button>
+                <p id="messageText" class="text-green-600 font-semibold"></p>
+
+                <div class="flex justify-center space-x-4">
                     <button onclick="downloadReport()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-300">
-                        Download Report
+                        Refresh Images
                     </button>
-                </div> {% endcomment %}
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        function startAttendance() {
-            fetch('/start_attendance/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken')
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('recognition-status').textContent = 'Running';
-                document.getElementById('recognition-status').classList.remove('text-blue-600');
-                document.getElementById('recognition-status').classList.add('text-green-600');
-            });
-        }
-
-        function stopAttendance() {
-            fetch('/stop_attendance/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken')
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('recognition-status').textContent = 'Stopped';
-                document.getElementById('recognition-status').classList.remove('text-green-600');
-                document.getElementById('recognition-status').classList.add('text-red-600');
-            });
-        }
 
         function downloadReport() {
-            window.location.href = '/download_report/';
+            fetch('/attendance/generate-face-encodings/')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('messageText').textContent = data.message;
+                })
+                .catch(error => {
+                    document.getElementById('messageText').textContent = 'Error generating face encodings';
+                });
         }
-
-        // Function to get CSRF token
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
+        
     </script>
 </body>
 </html>
