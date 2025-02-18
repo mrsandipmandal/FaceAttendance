@@ -21,6 +21,8 @@ from django.utils import timezone
 from django.shortcuts import render
 from .models import Employee, Attendance
 import os
+import pyttsx3  # Text-to-Speech library
+
 
 # Load the face detector
 # detector = dlib.get_frontal_face_detector()
@@ -38,6 +40,9 @@ predictor = dlib.shape_predictor(PREDICTOR_PATH)
 detector = dlib.get_frontal_face_detector()
 # predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")  # Download required
 
+# Initialize text-to-speech engine
+engine = pyttsx3.init()
+engine.setProperty('rate', 150)  # Speed of speech
 
 def eye_aspect_ratio(eye):
     """Calculate the eye aspect ratio to detect blinks"""
