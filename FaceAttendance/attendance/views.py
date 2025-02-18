@@ -1,17 +1,31 @@
 # Capture Live Video for Attendance
+# import cv2
+# import face_recognition
+# from django.http import JsonResponse
+# from django.shortcuts import render
+# import numpy as np
+# from django.contrib.auth.models import User
+# from .models import Employee, Attendance
+# from django.utils import timezone  # Import timezone for time management
+# import dlib
+# from imutils import face_utils
+# import os
+
 import cv2
 import face_recognition
-from django.http import JsonResponse
-from django.shortcuts import render
 import numpy as np
-from django.contrib.auth.models import User
-from .models import Employee, Attendance
-from django.utils import timezone  # Import timezone for time management
 import dlib
 from imutils import face_utils
+from django.http import StreamingHttpResponse
+from django.utils import timezone
+from django.shortcuts import render
+from .models import Employee, Attendance
 import os
 
-
+# Load the face detector
+# detector = dlib.get_frontal_face_detector()
+# predictor_path = "shape_predictor_68_face_landmarks.dat"  # Make sure the file is in your project
+# predictor = dlib.shape_predictor(predictor_path)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Get the directory of views.py
 PREDICTOR_PATH = os.path.join(BASE_DIR, "shape_predictor_68_face_landmarks.dat")
@@ -24,14 +38,15 @@ predictor = dlib.shape_predictor(PREDICTOR_PATH)
 detector = dlib.get_frontal_face_detector()
 # predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")  # Download required
 
+
 def eye_aspect_ratio(eye):
-    """Calculate eye aspect ratio to detect blinks"""
+    """Calculate the eye aspect ratio to detect blinks"""
     A = np.linalg.norm(eye[1] - eye[5])
     B = np.linalg.norm(eye[2] - eye[4])
     C = np.linalg.norm(eye[0] - eye[3])
     return (A + B) / (2.0 * C)
 
-def detect_blink(frame, gray, face):
+def detect_blink(gray, face):
     """Detect if a person blinks"""
     shape = predictor(gray, face)
     shape = face_utils.shape_to_np(shape)
@@ -43,57 +58,44 @@ def detect_blink(frame, gray, face):
     right_EAR = eye_aspect_ratio(right_eye)
 
     ear = (left_EAR + right_EAR) / 2.0
-
     return ear < 0.2  # If eyes closed, return True
 
-def mark_attendance(request):
+def generate_frames():
     video_capture = cv2.VideoCapture(0)
 
-    # Load employee face encodings
     employees = Employee.objects.all()
     known_face_encodings = []
     known_face_names = []
 
     for employee in employees:
-        try:
-            if employee.face_encoding:
-                encoding_array = np.frombuffer(employee.face_encoding, dtype=np.float64)
-                if encoding_array.size == 128:
-                    known_face_encodings.append(encoding_array)
-                    known_face_names.append(employee.name)
-                else:
-                    print(f"Invalid encoding for {employee.name}")
-            else:
-                print(f"No encoding for {employee.name}")
-        except Exception as e:
-            print(f"Error loading encoding for {employee.name}: {e}")
-
-    blink_detected = False  # Track if blink is detected
+        if employee.face_encoding:
+            encoding_array = np.frombuffer(employee.face_encoding, dtype=np.float64)
+            if encoding_array.size == 128:
+                known_face_encodings.append(encoding_array)
+                known_face_names.append(employee.name)
 
     while True:
-        ret, frame = video_capture.read()
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        success, frame = video_capture.read()
+        if not success:
+            break
 
-        # Detect faces
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = detector(gray)
 
         for face in faces:
-            if detect_blink(frame, gray, face):
-                blink_detected = True  # User blinked, allow attendance
+            detect_blink(gray, face)
 
-        # Find faces and encode
         face_locations = face_recognition.face_locations(frame)
         face_encodings = face_recognition.face_encodings(frame, face_locations)
 
         for face_encoding, face_location in zip(face_encodings, face_locations):
             matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-            matches = [match.item() for match in matches]
-
             name = "Unknown"
 
-            if True in matches and blink_detected:
+            if True in matches:
                 first_match_index = matches.index(True)
                 name = known_face_names[first_match_index]
+
                 try:
                     attendance = Attendance.objects.create(user_id='001', time_in=timezone.now())
                     print(f"Attendance marked at {attendance.time_in}")
@@ -101,23 +103,130 @@ def mark_attendance(request):
                 except Exception as e:
                     print(f"Error marking attendance for {name}: {e}")
 
-            # Draw a rectangle
             top, right, bottom, left = face_location
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+            cv2.putText(frame, name, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
 
-            # Label face
-            font = cv2.FONT_HERSHEY_DUPLEX
-            cv2.putText(frame, name, (left + 6, bottom - 6), font, 0.5, (255, 255, 255), 1)
-
-        # Show video
-        cv2.imshow('Video', frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
     video_capture.release()
-    cv2.destroyAllWindows()
-    return JsonResponse({"message": "Attendance marked."})
+
+def video_feed(request):
+    return StreamingHttpResponse(generate_frames(), content_type='multipart/x-mixed-replace; boundary=frame')
+
+def live_feed_page(request):
+    return render(request, 'attendance/live_feed.html')
+
+
+# previus code
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Get the directory of views.py
+# PREDICTOR_PATH = os.path.join(BASE_DIR, "shape_predictor_68_face_landmarks.dat")
+
+# if not os.path.exists(PREDICTOR_PATH):
+#     raise FileNotFoundError(f"File not found: {PREDICTOR_PATH}")
+
+# predictor = dlib.shape_predictor(PREDICTOR_PATH)
+# # Load face detector and eye landmark predictor
+# detector = dlib.get_frontal_face_detector()
+# # predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")  # Download required
+
+# def eye_aspect_ratio(eye):
+#     """Calculate eye aspect ratio to detect blinks"""
+#     A = np.linalg.norm(eye[1] - eye[5])
+#     B = np.linalg.norm(eye[2] - eye[4])
+#     C = np.linalg.norm(eye[0] - eye[3])
+#     return (A + B) / (2.0 * C)
+
+# def detect_blink(frame, gray, face):
+#     """Detect if a person blinks"""
+#     shape = predictor(gray, face)
+#     shape = face_utils.shape_to_np(shape)
+
+#     left_eye = shape[42:48]
+#     right_eye = shape[36:42]
+
+#     left_EAR = eye_aspect_ratio(left_eye)
+#     right_EAR = eye_aspect_ratio(right_eye)
+
+#     ear = (left_EAR + right_EAR) / 2.0
+
+#     return ear < 0.2  # If eyes closed, return True
+
+# def mark_attendance(request):
+#     video_capture = cv2.VideoCapture(0)
+
+#     # Load employee face encodings
+#     employees = Employee.objects.all()
+#     known_face_encodings = []
+#     known_face_names = []
+
+#     for employee in employees:
+#         try:
+#             if employee.face_encoding:
+#                 encoding_array = np.frombuffer(employee.face_encoding, dtype=np.float64)
+#                 if encoding_array.size == 128:
+#                     known_face_encodings.append(encoding_array)
+#                     known_face_names.append(employee.name)
+#                 else:
+#                     print(f"Invalid encoding for {employee.name}")
+#             else:
+#                 print(f"No encoding for {employee.name}")
+#         except Exception as e:
+#             print(f"Error loading encoding for {employee.name}: {e}")
+
+#     blink_detected = False  # Track if blink is detected
+
+#     while True:
+#         ret, frame = video_capture.read()
+#         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+#         # Detect faces
+#         faces = detector(gray)
+
+#         for face in faces:
+#             if detect_blink(frame, gray, face):
+#                 blink_detected = True  # User blinked, allow attendance
+
+#         # Find faces and encode
+#         face_locations = face_recognition.face_locations(frame)
+#         face_encodings = face_recognition.face_encodings(frame, face_locations)
+
+#         for face_encoding, face_location in zip(face_encodings, face_locations):
+#             matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+#             matches = [match.item() for match in matches]
+
+#             name = "Unknown"
+
+#             if True in matches and blink_detected:
+#                 first_match_index = matches.index(True)
+#                 name = known_face_names[first_match_index]
+#                 try:
+#                     attendance = Attendance.objects.create(user_id='001', time_in=timezone.now())
+#                     print(f"Attendance marked at {attendance.time_in}")
+
+#                 except Exception as e:
+#                     print(f"Error marking attendance for {name}: {e}")
+
+#             # Draw a rectangle
+#             top, right, bottom, left = face_location
+#             cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+
+#             # Label face
+#             font = cv2.FONT_HERSHEY_DUPLEX
+#             cv2.putText(frame, name, (left + 6, bottom - 6), font, 0.5, (255, 255, 255), 1)
+
+#         # Show video
+#         cv2.imshow('Video', frame)
+
+#         if cv2.waitKey(1) & 0xFF == ord('q'):
+#             break
+
+#     video_capture.release()
+#     cv2.destroyAllWindows()
+#     return JsonResponse({"message": "Attendance marked."})
 
 
 # def mark_attendance(request):
