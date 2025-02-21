@@ -41,6 +41,7 @@ class Attendance(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     time_in = models.DateTimeField()
     time_out = models.DateTimeField(null=True, blank=True)
+    emp_id = models.IntegerField(null=True)
     
     def __str__(self):
         return f"{self.user.username} - {self.time_in}"
