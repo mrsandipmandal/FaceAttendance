@@ -10,3 +10,5 @@ urlpatterns = [
     path('video_feed/', video_feed, name='video_feed'),
     path('live_feed/', live_feed_page, name='live_feed'),
 ]
+
+192.168.1.233

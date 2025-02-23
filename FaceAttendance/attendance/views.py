@@ -122,38 +122,88 @@ class FaceAttendanceSystem:
 
             if best_match_index != -1 and matches[best_match_index]:
                 name = self.known_face_names[best_match_index]
-                emp_id = self.employee_ids[best_match_index]
-                recognized_faces.append((name, emp_id, face_location))
+                employee_id = self.employee_ids[best_match_index]
+                recognized_faces.append((name, employee_id, face_location))
 
         return recognized_faces
 
-    def mark_attendance(self, employee_id):
-        """Mark attendance for recognized employee"""
+    # def mark_attendance(self, employee_id):
+    #     """Mark attendance for recognized employee"""
+    #     try:
+    #         # Check if attendance already exists for this employee today
+    #         existing_attendance = Attendance.objects.filter(
+    #             employee_id=employee_id, 
+    #             date=timezone.now().date(),
+    #             time_in__isnull=False
+    #         ).first()
+    #         if existing_attendance:
+    #             logger.info(f"Attendance already marked for employee ID: {employee_id}")
+    #             return None
+            
+    #         attendance = Attendance.objects.create(
+    #             employee_id=employee_id, 
+    #             time_in=timezone.now(), 
+    #             date=timezone.now().date()
+    #         )
+    #         logger.info(f"Attendance marked for employee ID: {employee_id}")
+    #         return attendance
+    #     except Exception as e:
+    #         logger.error(f"Attendance marking error: {e}")
+    #         return None
+
+    def mark_attendance(self, employee_id, frame, face_location):
+        """Mark attendance for recognized employee and save face image"""
         try:
-            # Check if attendance already exists for this employee today
+            # Ensure the media directory exists
+            save_path = os.path.join(BASE_DIR, "media", "attendance_images")
+            os.makedirs(save_path, exist_ok=True)
+
+            # Extract face region
+            top, right, bottom, left = face_location
+            face_image = frame[top:bottom, left:right]
+
+            # Define image filename
+            filename = f"{employee_id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            image_path = os.path.join(save_path, filename)
+
+            # Save the face image
+            cv2.imwrite(image_path, face_image)
+
+            employee = Employee.objects.get(id=employee_id)  # Fetch the Employee instance
+            print(f"Employee: {employee}")
+
+            # Check if attendance already exists
             existing_attendance = Attendance.objects.filter(
-                employee_id=employee_id, 
+                employee=employee,  # ✅ Use employee instead of employee_id
                 date=timezone.now().date(),
                 time_in__isnull=False
             ).first()
+            
             if existing_attendance:
                 logger.info(f"Attendance already marked for employee ID: {employee_id}")
                 return None
-            
+
+            # Save attendance with image path
             attendance = Attendance.objects.create(
-                employee_id=employee_id, 
-                time_in=timezone.now(), 
-                date=timezone.now().date()
+                employee=employee,
+                time_in=timezone.now(),
+                date=timezone.now().date(),
+                image_path=f"attendance_images/{filename}"  # Store relative path
             )
-            logger.info(f"Attendance marked for employee ID: {employee_id}")
+            
+            logger.info(f"Attendance marked for employee ID: {employee_id}, Image saved: {filename}")
             return attendance
+        
         except Exception as e:
             logger.error(f"Attendance marking error: {e}")
             return None
 
+
 # Global instance of face attendance system
 face_attendance = FaceAttendanceSystem()
 
+
+# for webcam feed
 def generate_frames(request):
     """Generate video frames with face recognition"""
     # Reload known faces before starting
@@ -170,7 +220,7 @@ def generate_frames(request):
         # Recognize faces
         detected_faces = face_attendance.recognize_faces(frame)
 
-        for name, emp_id, face_location in detected_faces:
+        for name, employee_id, face_location in detected_faces:
             top, right, bottom, left = face_location
             
             # Draw rectangle and name
@@ -182,7 +232,7 @@ def generate_frames(request):
             if name not in recognized_faces:
                 recognized_faces.add(name)
                 face_attendance.speak(f"Welcome {name}")
-                face_attendance.mark_attendance(emp_id)
+                face_attendance.mark_attendance(employee_id)
 
         # Encode frame
         ret, buffer = cv2.imencode('.jpg', frame)
@@ -192,6 +242,45 @@ def generate_frames(request):
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
     video_capture.release()
+
+# for cctv video capture
+# def generate_frames(request):
+#     face_attendance.load_known_faces()
+    
+#     DVR_URL = "rtsp://admin:123456@192.168.1.233:554/Streaming/Channels/101"
+#     video_capture = cv2.VideoCapture(DVR_URL)
+
+#     if not video_capture.isOpened():
+#         logger.error("Could not open DVR stream")
+#         return
+
+#     recognized_faces = set()
+
+#     while True:
+#         success, frame = video_capture.read()
+#         if not success:
+#             break
+
+#         detected_faces = face_attendance.recognize_faces(frame)
+
+#         for name, employee_id, face_location in detected_faces:
+#             top, right, bottom, left = face_location
+#             cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+#             cv2.putText(frame, name, (left + 6, bottom - 6),
+#                         cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
+
+#             if name not in recognized_faces:
+#                 recognized_faces.add(name)
+#                 face_attendance.speak(f"Welcome {name}")
+#                 face_attendance.mark_attendance(employee_id)
+
+#         ret, buffer = cv2.imencode('.jpg', frame)
+#         frame = buffer.tobytes()
+        
+#         yield (b'--frame\r\n'
+#                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+#     video_capture.release()
 
 def video_feed(request):
     """Streaming video feed endpoint"""
@@ -272,7 +361,7 @@ def attendance_view(request):
 #     employees = Employee.objects.all()
     
 #     for emp in employees:
-#         known_faces.append((emp.emp_id, np.frombuffer(emp.face_encoding, dtype=np.float64)))
+#         known_faces.append((emp.employee_id, np.frombuffer(emp.face_encoding, dtype=np.float64)))
 
 #     # Convert frame to RGB
 #     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -286,8 +375,8 @@ def attendance_view(request):
 #         best_match_index = np.argmin(face_distances) if face_distances.size else -1
         
 #         if best_match_index >= 0 and matches[best_match_index]:
-#             emp_id = known_faces[best_match_index][0]
-#             return emp_id, location
+#             employee_id = known_faces[best_match_index][0]
+#             return employee_id, location
     
 #     return None, None
 def recognize_face(frame, tolerance=0.6):  # Lower tolerance means stricter matching
@@ -295,7 +384,7 @@ def recognize_face(frame, tolerance=0.6):  # Lower tolerance means stricter matc
     employees = Employee.objects.all()
     
     for emp in employees:
-        known_faces.append((emp.emp_id, np.frombuffer(emp.face_encoding, dtype=np.float64)))
+        known_faces.append((emp.employee_id, np.frombuffer(emp.face_encoding, dtype=np.float64)))
 
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     face_locations = face_recognition.face_locations(rgb_frame)
@@ -315,8 +404,8 @@ def recognize_face(frame, tolerance=0.6):  # Lower tolerance means stricter matc
         best_match_index = np.argmin(face_distances) if matches.count(True) > 0 else -1
         
         if best_match_index >= 0 and matches[best_match_index]:
-            emp_id = known_faces[best_match_index][0]
-            return emp_id, location
+            employee_id = known_faces[best_match_index][0]
+            return employee_id, location
     
     return None, None
 
@@ -328,9 +417,9 @@ def live_camera_feed(request):
         if not ret:
             break
         
-        emp_id, location = recognize_face(frame)
-        if emp_id:
-            return JsonResponse({"status": "success", "emp_id": emp_id})
+        employee_id, location = recognize_face(frame)
+        if employee_id:
+            return JsonResponse({"status": "success", "employee_id": employee_id})
     
     cap.release()
     return JsonResponse({"status": "no_match"})
