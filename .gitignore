@@ -9,3 +9,7 @@ __pycache__/
 
 # Ignore Virtual Environment
 venv/
+
+# Ignore Medeia files
+*/attendance/media/*.jpg
+*/attendance/media/attendance_images/*.jpg

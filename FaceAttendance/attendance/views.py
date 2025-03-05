@@ -24,7 +24,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PREDICTOR_PATH = os.path.join(BASE_DIR, "shape_predictor_68_face_landmarks.dat")
 
 # Face Recognition Configuration
-FACE_RECOGNITION_TOLERANCE = 0.5  # Adjustable tolerance
+FACE_RECOGNITION_TOLERANCE = 0.45  # Adjustable tolerance
 MIN_FACE_MATCHES = 1  # Minimum number of face matches required
 
 class FaceAttendanceSystem:
@@ -148,12 +148,13 @@ class FaceAttendanceSystem:
             # Save the face image
             cv2.imwrite(image_path, face_image)
 
-            employee = Employee.objects.get(id=employee_id)  # Fetch the Employee instance
+            # Fetch the Employee instance
+            employee = Employee.objects.get(id=employee_id)  
             print(f"Employee: {employee}")
 
             # Check if attendance already exists
             existing_attendance = Attendance.objects.filter(
-                employee=employee,  # ✅ Use employee instead of employee_id
+                employee=employee,  # Use the Employee instance
                 date=timezone.now().date(),
                 time_in__isnull=False
             ).first()
