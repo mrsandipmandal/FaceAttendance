@@ -1,4 +1,11 @@
-/FaceAttendance/attendance/__pycache__/*
-/FaceAttendance/attendance/__pycache__/
-FaceAttendance/attendance/migrations/__pycache__/*
-FaceAttendance/attendance/migrations/__pycache__/
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore Django migration cache
+*/migrations/__pycache__/
+*/migrations/*.pyc
+
+# Ignore Virtual Environment
+venv/
