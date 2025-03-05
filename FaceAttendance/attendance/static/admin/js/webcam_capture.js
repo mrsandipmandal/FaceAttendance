@@ -1,9 +1,18 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if we're on the employee add/change page
-    const employeeForm = document.getElementById('employee_form');
-    if (!employeeForm) return;
+    console.log("Webcam capture script loaded");
 
-    // Create modal HTML
+    // Find the form and capture method radios
+    const employeeForm = document.getElementById('employee_form');
+    const captureMethodRadios = document.querySelectorAll('input[name="capture_method"]');
+    
+    if (!employeeForm) {
+        console.error("Employee form not found");
+        return;
+    }
+
+    console.log("Capture method radios found:", captureMethodRadios.length);
+
+    // Create webcam capture modal
     const modalHtml = `
     <div id="webcam-modal" style="display:none; position:fixed; z-index:9999; 
         left:0; top:0; width:100%; height:100%; 
@@ -11,10 +20,9 @@ document.addEventListener('DOMContentLoaded', function() {
         display:flex; align-items:center; justify-content:center;">
         <div style="background:white; padding:20px; border-radius:10px; width:500px;">
             <h3>Capture Employee Image</h3>
-            <div id="webcam-error" style="color:red; display:none;">Webcam access not available</div>
-            <video id="webcam-video" width="100%" autoplay style="display:none;"></video>
+            <video id="webcam-video" width="100%" autoplay></video>
             <div style="margin-top:10px;">
-                <button id="capture-btn" class="button" style="display:none;">Capture</button>
+                <button id="capture-btn" class="button">Capture</button>
                 <button id="close-modal-btn" class="button">Cancel</button>
             </div>
             <canvas id="capture-canvas" style="display:none;"></canvas>
@@ -33,11 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const captureButton = document.getElementById('capture-btn');
     const closeModalButton = document.getElementById('close-modal-btn');
     const captureCanvas = document.getElementById('capture-canvas');
-    const errorElement = document.getElementById('webcam-error');
     const imageInput = document.getElementById('id_image');
-
-    // Find capture method radios
-    const captureMethodRadios = document.querySelectorAll('input[name="capture_method"]');
 
     // Webcam stream reference
     let webcamStream = null;
@@ -47,9 +51,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const webcamRadio = document.querySelector('input[name="capture_method"][value="webcam"]');
         
         if (webcamRadio && webcamRadio.checked) {
+            console.log("Webcam capture selected");
             modal.style.display = 'flex';
             startWebcam();
         } else {
+            console.log("File upload selected");
             modal.style.display = 'none';
             stopWebcam();
         }
@@ -57,74 +63,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Start webcam
     function startWebcam() {
-        // Reset UI
-        videoElement.style.display = 'none';
-        captureButton.style.display = 'none';
-        errorElement.style.display = 'none';
-
-        // Check for getUserMedia support
-        const getUserMedia = (
-            navigator.mediaDevices && navigator.mediaDevices.getUserMedia
-        ) || 
-        (navigator.getUserMedia) || 
-        (navigator.webkitGetUserMedia) || 
-        (navigator.mozGetUserMedia);
-
-        if (!getUserMedia) {
-            showWebcamError('Webcam access not supported by this browser');
-            return;
-        }
-
-        // Attempt to get user media
-        const constraints = { video: true };
-        
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia(constraints)
-                .then(function(stream) {
-                    webcamStream = stream;
-                    videoElement.srcObject = stream;
-                    videoElement.play()
-                        .then(() => {
-                            videoElement.style.display = 'block';
-                            captureButton.style.display = 'block';
-                        })
-                        .catch(err => {
-                            showWebcamError('Error playing video: ' + err.message);
-                        });
-                })
-                .catch(function(err) {
-                    showWebcamError('Webcam access error: ' + err.message);
-                });
-        } else if (getUserMedia) {
-            // Fallback for older browsers
-            getUserMedia.call(navigator, constraints, 
-                function(stream) {
-                    webcamStream = stream;
-                    videoElement.srcObject = stream;
-                    videoElement.play();
-                    videoElement.style.display = 'block';
-                    captureButton.style.display = 'block';
-                }, 
-                function(err) {
-                    showWebcamError('Webcam access error: ' + err.message);
-                }
-            );
-        } else {
-            showWebcamError('getUserMedia not supported in this browser');
-        }
-    }
-
-    // Show webcam error
-    function showWebcamError(message) {
-        errorElement.textContent = message;
-        errorElement.style.display = 'block';
-        videoElement.style.display = 'none';
-        captureButton.style.display = 'none';
-        
-        // Revert to file upload
-        setTimeout(() => {
-            document.querySelector('input[name="capture_method"][value="file"]').checked = true;
-        }, 100);
+        console.log("Attempting to start webcam");
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                console.log("Webcam stream obtained");
+                webcamStream = stream;
+                videoElement.srcObject = stream;
+                videoElement.play();
+            })
+            .catch(function(err) {
+                console.error("Webcam access error:", err);
+                alert("Unable to access webcam. Please check permissions.");
+            });
     }
 
     // Stop webcam
@@ -133,8 +83,6 @@ document.addEventListener('DOMContentLoaded', function() {
             webcamStream.getTracks().forEach(track => track.stop());
             webcamStream = null;
             videoElement.srcObject = null;
-            videoElement.style.display = 'none';
-            captureButton.style.display = 'none';
         }
     }
 
@@ -169,4 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
     captureMethodRadios.forEach(radio => {
         radio.addEventListener('change', toggleWebcamCapture);
     });
+
+    // Initial setup
+    console.log("Initial setup complete");
 });
