@@ -14,6 +14,8 @@ from .models import Employee, Attendance
 import os
 import logging
 
+
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -127,29 +129,6 @@ class FaceAttendanceSystem:
 
         return recognized_faces
 
-    # def mark_attendance(self, employee_id):
-    #     """Mark attendance for recognized employee"""
-    #     try:
-    #         # Check if attendance already exists for this employee today
-    #         existing_attendance = Attendance.objects.filter(
-    #             employee_id=employee_id, 
-    #             date=timezone.now().date(),
-    #             time_in__isnull=False
-    #         ).first()
-    #         if existing_attendance:
-    #             logger.info(f"Attendance already marked for employee ID: {employee_id}")
-    #             return None
-            
-    #         attendance = Attendance.objects.create(
-    #             employee_id=employee_id, 
-    #             time_in=timezone.now(), 
-    #             date=timezone.now().date()
-    #         )
-    #         logger.info(f"Attendance marked for employee ID: {employee_id}")
-    #         return attendance
-    #     except Exception as e:
-    #         logger.error(f"Attendance marking error: {e}")
-    #         return None
 
     def mark_attendance(self, employee_id, frame, face_location):
         """Mark attendance for recognized employee and save face image"""
@@ -203,7 +182,7 @@ class FaceAttendanceSystem:
 face_attendance = FaceAttendanceSystem()
 
 
-# for webcam feed
+""" for webcam video capture """
 def generate_frames(request):
     """Generate video frames with face recognition"""
     # Reload known faces before starting
@@ -244,7 +223,7 @@ def generate_frames(request):
 
     video_capture.release()
 
-# for cctv video capture
+""" for cctv video capture """
 # def generate_frames(request):
 #     face_attendance.load_known_faces()
     
@@ -283,8 +262,8 @@ def generate_frames(request):
 
 #     video_capture.release()
 
+
 def video_feed(request):
-    """Streaming video feed endpoint"""
     return StreamingHttpResponse(
         generate_frames(request), 
         content_type='multipart/x-mixed-replace; boundary=frame'
@@ -293,8 +272,6 @@ def video_feed(request):
 def live_feed_page(request):
     """Render live feed page"""
     return render(request, 'attendance/live_feed.html')
-
-# Other existing view functions remain the same...
 
 # single face encoding
 def generate_and_store_face_encoding(request):
@@ -327,100 +304,6 @@ def generate_and_store_face_encoding(request):
 
     return JsonResponse({"message": "Face encodings generated and stored."})
 
-# for multiple face encodings
-# def generate_and_store_face_encoding(request):
-#     employees = Employee.objects.all()
-
-#     for employee in employees:
-#         try:
-#             image_path = employee.image.path
-#             image = face_recognition.load_image_file(image_path)
-
-#             # Generate multiple face encodings
-#             face_locations = face_recognition.face_locations(image)
-#             face_encodings = face_recognition.face_encodings(image, face_locations)
-
-#             if face_encodings:
-#                 # Store multiple encodings if available
-#                 employee.face_encodings = [encoding.tobytes() for encoding in face_encodings]
-#                 employee.save()
-
-#                 print(f"Multiple face encodings saved for {employee.name}")
-#             else:
-#                 print(f"No face found for {employee.name}")
-
-#         except Exception as e:
-#             print(f"Error processing image for {employee.name}: {e}")
-
-#     return JsonResponse({"message": "Face encodings generated and stored."})
 
 def attendance_view(request):
     return render(request, 'attendance/attendance.html')
-
-# def recognize_face(frame):
-#     known_faces = []
-#     employees = Employee.objects.all()
-    
-#     for emp in employees:
-#         known_faces.append((emp.employee_id, np.frombuffer(emp.face_encoding, dtype=np.float64)))
-
-#     # Convert frame to RGB
-#     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-#     face_locations = face_recognition.face_locations(rgb_frame)
-#     face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
-
-#     for face_encoding, location in zip(face_encodings, face_locations):
-#         matches = face_recognition.compare_faces([f[1] for f in known_faces], face_encoding)
-#         face_distances = face_recognition.face_distance([f[1] for f in known_faces], face_encoding)
-        
-#         best_match_index = np.argmin(face_distances) if face_distances.size else -1
-        
-#         if best_match_index >= 0 and matches[best_match_index]:
-#             employee_id = known_faces[best_match_index][0]
-#             return employee_id, location
-    
-#     return None, None
-def recognize_face(frame, tolerance=0.6):  # Lower tolerance means stricter matching
-    known_faces = []
-    employees = Employee.objects.all()
-    
-    for emp in employees:
-        known_faces.append((emp.employee_id, np.frombuffer(emp.face_encoding, dtype=np.float64)))
-
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    face_locations = face_recognition.face_locations(rgb_frame)
-    face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
-
-    for face_encoding, location in zip(face_encodings, face_locations):
-        # Use compare_faces with a specific tolerance
-        matches = face_recognition.compare_faces(
-            [f[1] for f in known_faces], 
-            face_encoding, 
-            tolerance=tolerance  # Adjust this value
-        )
-        
-        face_distances = face_recognition.face_distance([f[1] for f in known_faces], face_encoding)
-        
-        # Find the best match with lowest distance
-        best_match_index = np.argmin(face_distances) if matches.count(True) > 0 else -1
-        
-        if best_match_index >= 0 and matches[best_match_index]:
-            employee_id = known_faces[best_match_index][0]
-            return employee_id, location
-    
-    return None, None
-
-def live_camera_feed(request):
-    cap = cv2.VideoCapture(0)
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        
-        employee_id, location = recognize_face(frame)
-        if employee_id:
-            return JsonResponse({"status": "success", "employee_id": employee_id})
-    
-    cap.release()
-    return JsonResponse({"status": "no_match"})
