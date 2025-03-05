@@ -151,53 +151,68 @@ class FaceAttendanceSystem:
     #         logger.error(f"Attendance marking error: {e}")
     #         return None
 
-    def mark_attendance(self, employee_id, frame, face_location):
-        """Mark attendance for recognized employee and save face image"""
-        try:
-            # Ensure the media directory exists
-            save_path = os.path.join(BASE_DIR, "media", "attendance_images")
-            os.makedirs(save_path, exist_ok=True)
+    # def mark_attendance(self, employee_id, frame, face_location):
+    #     """Mark attendance for recognized employee and save face image"""
+    #     try:
+    #         # Ensure the media directory exists
+    #         save_path = os.path.join(BASE_DIR, "media", "attendance_images")
+    #         os.makedirs(save_path, exist_ok=True)
 
-            # Extract face region
-            top, right, bottom, left = face_location
-            face_image = frame[top:bottom, left:right]
+    #         # Extract face region
+    #         top, right, bottom, left = face_location
+    #         face_image = frame[top:bottom, left:right]
 
-            # Define image filename
-            filename = f"{employee_id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-            image_path = os.path.join(save_path, filename)
+    #         # Define image filename
+    #         filename = f"{employee_id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+    #         image_path = os.path.join(save_path, filename)
 
-            # Save the face image
-            cv2.imwrite(image_path, face_image)
+    #         # Save the face image
+    #         cv2.imwrite(image_path, face_image)
 
-            employee = Employee.objects.get(id=employee_id)  # Fetch the Employee instance
-            print(f"Employee: {employee}")
+    #         # Fetch the Employee instance
+    #         employee = Employee.objects.get(id=employee_id)
 
-            # Check if attendance already exists
-            existing_attendance = Attendance.objects.filter(
-                employee=employee,  # ✅ Use employee instead of employee_id
-                date=timezone.now().date(),
-                time_in__isnull=False
-            ).first()
+    #         # Check if attendance already exists
+    #         existing_attendance = Attendance.objects.filter(
+    #             employee=employee,
+    #             date=timezone.now().date(),
+    #             time_in__isnull=False
+    #         ).first()
             
-            if existing_attendance:
-                logger.info(f"Attendance already marked for employee ID: {employee_id}")
-                return None
+    #         if existing_attendance:
+    #             logger.info(f"Attendance already marked for employee ID: {employee_id}")
+    #             return None
 
-            # Save attendance with image path
-            employee = Employee.objects.get(id=employee_id) 
-            attendance = Attendance.objects.create(
-                employee=employee,
-                time_in=timezone.now(),
-                date=timezone.now().date(),
-                image_path=f"attendance_images/{filename}"  # Store relative path
-            )
+    #         # Save attendance with image path
+    #         attendance = Attendance.objects.create(
+    #             employee=employee,  # Use the Employee instance, not employee_id
+    #             time_in=timezone.now(),
+    #             date=timezone.now().date(),
+    #             image_path=f"attendance_images/{filename}"  # Store relative path
+    #         )
             
-            logger.info(f"Attendance marked for employee ID: {employee_id}, Image saved: {filename}")
-            return attendance
+    #         logger.info(f"Attendance marked for employee ID: {employee_id}, Image saved: {filename}")
+    #         return attendance
         
-        except Exception as e:
-            logger.error(f"Attendance marking error: {e}")
-            return None
+    #     except Exception as e:
+    #         logger.error(f"Attendance marking error: {e}")
+    #         return None
+def mark_attendance(self, employee_id, frame, face_location):
+    try:
+        # Detailed logging
+        logger.info(f"Attempting to mark attendance for employee ID: {employee_id}")
+        logger.info(f"Frame shape: {frame.shape}")
+        logger.info(f"Face location: {face_location}")
+
+        # Rest of the method remains the same...
+    
+    except Exception as e:
+        logger.error(f"Detailed Attendance marking error: {e}")
+        logger.error(f"Error type: {type(e)}")
+        logger.error(f"Error args: {e.args}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
 
 
 # Global instance of face attendance system
