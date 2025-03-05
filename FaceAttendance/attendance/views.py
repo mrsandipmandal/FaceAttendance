@@ -184,6 +184,7 @@ class FaceAttendanceSystem:
                 return None
 
             # Save attendance with image path
+            employee = Employee.objects.get(id=employee_id) 
             attendance = Attendance.objects.create(
                 employee=employee,
                 time_in=timezone.now(),
@@ -232,7 +233,8 @@ def generate_frames(request):
             if name not in recognized_faces:
                 recognized_faces.add(name)
                 face_attendance.speak(f"Welcome {name}")
-                face_attendance.mark_attendance(employee_id)
+                # face_attendance.mark_attendance(employee_id)
+                face_attendance.mark_attendance(employee_id, frame, face_location)
 
         # Encode frame
         ret, buffer = cv2.imencode('.jpg', frame)

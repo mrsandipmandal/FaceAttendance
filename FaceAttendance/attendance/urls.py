@@ -11,4 +11,4 @@ urlpatterns = [
     path('live_feed/', live_feed_page, name='live_feed'),
 ]
 
-192.168.1.233
+# 192.168.1.233
