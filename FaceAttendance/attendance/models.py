@@ -6,6 +6,8 @@ import face_recognition
 import numpy as np
 from django.core.exceptions import ValidationError
 
+
+
 class Employee(models.Model):
     name = models.CharField(max_length=100)
     emp_id = models.CharField(max_length=50, unique=True)
@@ -35,17 +37,6 @@ class Employee(models.Model):
             raise ValidationError(f"Error while saving face encoding for {self.name}: {str(e)}")
 
 
-# class Attendance(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)
-#     time_in = models.DateTimeField()
-#     time_out = models.DateTimeField(null=True, blank=True)
-#     emp_id = models.IntegerField(null=True)
-    
-#     def __str__(self):
-#         return f"{self.user.username} - {self.time_in}"
-#     class Meta:
-#         ordering = ['-time_in']
-        
 class Attendance(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     time_in = models.DateTimeField()
