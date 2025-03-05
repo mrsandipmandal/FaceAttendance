@@ -133,8 +133,9 @@ class FaceAttendanceSystem:
     def mark_attendance(self, employee_id, frame, face_location):
         """Mark attendance for recognized employee and save face image"""
         try:
-            # Ensure the media directory exists
-            save_path = os.path.join(BASE_DIR, "media", "attendance_images")
+            # Modify the save path to be at the root of the project
+            # save_path = os.path.join(BASE_DIR, "media", "attendance_images") # old path 
+            save_path = os.path.join("media", "attendance_images") # use root media folder
             os.makedirs(save_path, exist_ok=True)
 
             # Extract face region
@@ -154,11 +155,11 @@ class FaceAttendanceSystem:
 
             # Check if attendance already exists
             existing_attendance = Attendance.objects.filter(
-                employee=employee,  # Use the Employee instance
+                employee=employee,
                 date=timezone.now().date(),
                 time_in__isnull=False
             ).first()
-            
+           
             if existing_attendance:
                 logger.info(f"Attendance already marked for employee ID: {employee_id}")
                 return None
@@ -170,10 +171,10 @@ class FaceAttendanceSystem:
                 date=timezone.now().date(),
                 image_path=f"attendance_images/{filename}"  # Store relative path
             )
-            
+           
             logger.info(f"Attendance marked for employee ID: {employee_id}, Image saved: {filename}")
             return attendance
-        
+
         except Exception as e:
             logger.error(f"Attendance marking error: {e}")
             return None
