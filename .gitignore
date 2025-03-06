@@ -11,5 +11,5 @@ __pycache__/
 venv/
 
 # Ignore Medeia files
-*/attendance/media/*.jpg
-*/attendance/media/attendance_images/*.jpg
+*/FaceAttendance/media/employees/*.jpg
+*/FaceAttendance/media/attendance_images/*.jpg

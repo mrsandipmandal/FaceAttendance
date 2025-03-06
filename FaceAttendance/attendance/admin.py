@@ -76,9 +76,8 @@ class AttendanceAdmin(admin.ModelAdmin):
     list_filter = ('id',)
     
     def display_image(self, obj):
-        print(f"AttendanceAdmin : {obj.image_path}")
         if obj.image_path:
-            return mark_safe(f'<img src="attendance{settings.MEDIA_URL}{obj.image_path}" width="100" height="100" />')
+            return mark_safe(f'<img src="{settings.MEDIA_URL}{obj.image_path}" width="100" height="100" />')
         return 'No Image'
 
     display_image.short_description = 'Image'
