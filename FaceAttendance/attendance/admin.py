@@ -27,7 +27,7 @@ class EmployeeAdmin(admin.ModelAdmin):
     def display_image(self, obj):
         # print(f"EmployeeAdmin : {obj.image}")
         if obj.image:
-            return mark_safe(f'<img src="{obj.image.url}" width="100" height="100" />')
+            return mark_safe(f'<a href="{obj.image.url}" target="_blank"><img src="{obj.image.url}" width="100" height="100" /></a>')
         return 'No Image'
     
     display_image.short_description = 'Image'
@@ -77,7 +77,7 @@ class AttendanceAdmin(admin.ModelAdmin):
     
     def display_image(self, obj):
         if obj.image_path:
-            return mark_safe(f'<img src="{settings.MEDIA_URL}{obj.image_path}" width="100" height="100" />')
+            return mark_safe(f'<a href="{settings.MEDIA_URL}{obj.image_path}" target="_blank"><img src="{settings.MEDIA_URL}{obj.image_path}" width="100" height="100" /></a>')
         return 'No Image'
 
     display_image.short_description = 'Image'

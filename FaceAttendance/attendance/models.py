@@ -14,10 +14,7 @@ class Employee(models.Model):
     image = models.ImageField(upload_to='employees/')
     face_encoding = models.BinaryField(blank=True, null=True)  # Store the binary data of the encoding
     def save_face_encoding(self):
-        try:
-            # Print the image path to check if it resolves correctly
-            print("Image path:", self.image.path)
-            
+        try:            
             # Load the image file from the employee's image path
             image_path = self.image.path
             image = face_recognition.load_image_file(image_path)
