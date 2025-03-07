@@ -15,10 +15,6 @@ venv/
 env/
 ENV/
 
-# Ignore Media files
-# FaceAttendance/media/employees/*
-# FaceAttendance/media/attendance_images/*
-
 # Ignore Django admin cache
 */__pycache__/*
 **/__pycache__/
@@ -26,3 +22,7 @@ ENV/
 .coverage
 htmlcov/
 FaceAttendance/attendance/__pycache__/*
+
+# Ignore Media files
+# FaceAttendance/media/employees/*
+# FaceAttendance/media/attendance_images/*
