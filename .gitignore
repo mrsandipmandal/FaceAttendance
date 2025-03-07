@@ -13,3 +13,6 @@ venv/
 # Ignore Medeia files
 FaceAttendance/media/employees/*
 FaceAttendance/media/attendance_images/*
+
+# Ignore Django admin cache
+FaceAttendance/attendance/__pycache__/*
