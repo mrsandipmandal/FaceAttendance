@@ -25,3 +25,4 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+FaceAttendance/attendance/__pycache__/*
