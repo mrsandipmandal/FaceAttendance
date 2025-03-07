@@ -11,5 +11,10 @@ __pycache__/
 venv/
 
 # Ignore Medeia files
-FaceAttendance/media/employees/*
-FaceAttendance/media/attendance_images/*
+# FaceAttendance/media/employees/*
+# FaceAttendance/media/attendance_images/*
+
+# Ignore Django admin cache
+*/__pycache__/*
+*.pyo
+*.pyc
