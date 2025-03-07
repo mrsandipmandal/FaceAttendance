@@ -1,0 +1,15 @@
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore Django migration cache
+*/migrations/__pycache__/
+*/migrations/*.pyc
+
+# Ignore Virtual Environment
+venv/
+
+# Ignore Medeia files
+FaceAttendance/media/employees/*
+FaceAttendance/media/attendance_images/*

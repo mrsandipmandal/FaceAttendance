@@ -1,11 +1,12 @@
 from django.db import models
 from django.contrib.auth.models import User
-
-
+from django.utils import timezone  # 
 from django.db import models
 import face_recognition
 import numpy as np
 from django.core.exceptions import ValidationError
+
+
 
 class Employee(models.Model):
     name = models.CharField(max_length=100)
@@ -13,10 +14,7 @@ class Employee(models.Model):
     image = models.ImageField(upload_to='employees/')
     face_encoding = models.BinaryField(blank=True, null=True)  # Store the binary data of the encoding
     def save_face_encoding(self):
-        try:
-            # Print the image path to check if it resolves correctly
-            print("Image path:", self.image.path)
-            
+        try:            
             # Load the image file from the employee's image path
             image_path = self.image.path
             image = face_recognition.load_image_file(image_path)
@@ -36,13 +34,12 @@ class Employee(models.Model):
             raise ValidationError(f"Error while saving face encoding for {self.name}: {str(e)}")
 
 
-
 class Attendance(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     time_in = models.DateTimeField()
     time_out = models.DateTimeField(null=True, blank=True)
-    
+    date = models.DateField(default=timezone.now)
+    image_path = models.CharField(max_length=255, null=True, blank=True)  # Add this field
+
     def __str__(self):
-        return f"{self.user.username} - {self.time_in}"
-    class Meta:
-        ordering = ['-time_in']
+        return f"{self.employee.name} - {self.time_in}"
