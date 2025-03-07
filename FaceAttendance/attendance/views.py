@@ -306,6 +306,5 @@ def generate_and_store_face_encoding(request):
 
     return JsonResponse({"message": "Face encodings generated and stored."})
 
-
 def attendance_view(request):
     return render(request, 'attendance/attendance.html')
