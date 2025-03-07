@@ -94,90 +94,127 @@ class FaceAttendanceSystem:
                 except Exception as e:
                     logger.error(f"Error loading face encoding for {employee.name}: {e}")
 
+# single face recognition
+    # def recognize_faces(self, frame):
+    #     """Advanced face recognition method"""
+    #     # Preprocess frame
+    #     preprocessed_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+    #     # Detect faces
+    #     face_locations = face_recognition.face_locations(preprocessed_frame)
+    #     face_encodings = face_recognition.face_encodings(preprocessed_frame, face_locations)
+
+    #     recognized_faces = []
+
+    #     for face_encoding, face_location in zip(face_encodings, face_locations):
+    #         # Compare faces with custom tolerance
+    #         matches = face_recognition.compare_faces(
+    #             self.known_face_encodings, 
+    #             face_encoding, 
+    #             tolerance=FACE_RECOGNITION_TOLERANCE
+    #         )
+
+    #         # Compute face distances
+    #         face_distances = face_recognition.face_distance(
+    #             self.known_face_encodings, 
+    #             face_encoding
+    #         )
+
+    #         # Find best match
+    #         best_match_index = np.argmin(face_distances) if len(face_distances) > 0 else -1
+
+    #         if best_match_index != -1 and matches[best_match_index]:
+    #             name = self.known_face_names[best_match_index]
+    #             employee_id = self.employee_ids[best_match_index]
+    #             recognized_faces.append((name, employee_id, face_location))
+
+    #     return recognized_faces
+
+# multiple face recognition
     def recognize_faces(self, frame):
-        """Advanced face recognition method"""
-        # Preprocess frame
+        """Enhanced face recognition with multiple angle matching"""
         preprocessed_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         
-        # Detect faces
-        face_locations = face_recognition.face_locations(preprocessed_frame)
+        # Detect faces with different angles
+        face_locations = face_recognition.face_locations(preprocessed_frame, model="cnn")
         face_encodings = face_recognition.face_encodings(preprocessed_frame, face_locations)
 
         recognized_faces = []
 
         for face_encoding, face_location in zip(face_encodings, face_locations):
-            # Compare faces with custom tolerance
+            # Use stricter matching criteria
             matches = face_recognition.compare_faces(
                 self.known_face_encodings, 
                 face_encoding, 
-                tolerance=FACE_RECOGNITION_TOLERANCE
+                tolerance=0.4  # Reduced tolerance for higher accuracy
             )
-
-            # Compute face distances
+            
             face_distances = face_recognition.face_distance(
                 self.known_face_encodings, 
                 face_encoding
             )
 
-            # Find best match
-            best_match_index = np.argmin(face_distances) if len(face_distances) > 0 else -1
-
-            if best_match_index != -1 and matches[best_match_index]:
-                name = self.known_face_names[best_match_index]
-                employee_id = self.employee_ids[best_match_index]
-                recognized_faces.append((name, employee_id, face_location))
+            if len(face_distances) > 0:
+                best_match_index = np.argmin(face_distances)
+                confidence = 1 - face_distances[best_match_index]
+                
+                # Only accept matches with high confidence
+                if matches[best_match_index] and confidence > 0.6:
+                    name = self.known_face_names[best_match_index]
+                    employee_id = self.employee_ids[best_match_index]
+                    recognized_faces.append((name, employee_id, face_location))
 
         return recognized_faces
 
 
-    def mark_attendance(self, employee_id, frame, face_location):
-        """Mark attendance for recognized employee and save face image"""
-        try:
-            # Modify the save path to be at the root of the project
-            # save_path = os.path.join(BASE_DIR, "media", "attendance_images") # old path 
-            save_path = os.path.join("media", "attendance_images") # use root media folder
-            os.makedirs(save_path, exist_ok=True)
+        def mark_attendance(self, employee_id, frame, face_location):
+            """Mark attendance for recognized employee and save face image"""
+            try:
+                # Modify the save path to be at the root of the project
+                # save_path = os.path.join(BASE_DIR, "media", "attendance_images") # old path 
+                save_path = os.path.join("media", "attendance_images") # use root media folder
+                os.makedirs(save_path, exist_ok=True)
 
-            # Extract face region
-            top, right, bottom, left = face_location
-            face_image = frame[top:bottom, left:right]
+                # Extract face region
+                top, right, bottom, left = face_location
+                face_image = frame[top:bottom, left:right]
 
-            # Define image filename
-            filename = f"{employee_id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-            image_path = os.path.join(save_path, filename)
+                # Define image filename
+                filename = f"{employee_id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+                image_path = os.path.join(save_path, filename)
 
-            # Save the face image
-            cv2.imwrite(image_path, face_image)
+                # Save the face image
+                cv2.imwrite(image_path, face_image)
 
-            # Fetch the Employee instance
-            employee = Employee.objects.get(id=employee_id)  
-            print(f"Employee: {employee}")
+                # Fetch the Employee instance
+                employee = Employee.objects.get(id=employee_id)  
+                print(f"Employee: {employee}")
 
-            # Check if attendance already exists
-            existing_attendance = Attendance.objects.filter(
-                employee=employee,
-                date=timezone.now().date(),
-                time_in__isnull=False
-            ).first()
-           
-            if existing_attendance:
-                logger.info(f"Attendance already marked for employee ID: {employee_id}")
+                # Check if attendance already exists
+                existing_attendance = Attendance.objects.filter(
+                    employee=employee,
+                    date=timezone.now().date(),
+                    time_in__isnull=False
+                ).first()
+            
+                if existing_attendance:
+                    logger.info(f"Attendance already marked for employee ID: {employee_id}")
+                    return None
+
+                # Save attendance with image path
+                attendance = Attendance.objects.create(
+                    employee=employee,
+                    time_in=timezone.now(),
+                    date=timezone.now().date(),
+                    image_path=f"attendance_images/{filename}"  # Store relative path
+                )
+            
+                logger.info(f"Attendance marked for employee ID: {employee_id}, Image saved: {filename}")
+                return attendance
+
+            except Exception as e:
+                logger.error(f"Attendance marking error: {e}")
                 return None
-
-            # Save attendance with image path
-            attendance = Attendance.objects.create(
-                employee=employee,
-                time_in=timezone.now(),
-                date=timezone.now().date(),
-                image_path=f"attendance_images/{filename}"  # Store relative path
-            )
-           
-            logger.info(f"Attendance marked for employee ID: {employee_id}, Image saved: {filename}")
-            return attendance
-
-        except Exception as e:
-            logger.error(f"Attendance marking error: {e}")
-            return None
 
 
 # Global instance of face attendance system
@@ -276,35 +313,73 @@ def live_feed_page(request):
     return render(request, 'attendance/live_feed.html')
 
 # single face encoding
+# def generate_and_store_face_encoding(request):
+#     employees = Employee.objects.all()
+
+#     for employee in employees:
+#         try:
+#             # Assuming 'image' is the file field of Employee model
+#             image_path = employee.image.path
+#             # Load the image from the file path
+#             image = face_recognition.load_image_file(image_path)
+
+#             # Generate face encodings for the image (assuming one face per image)
+#             face_encodings = face_recognition.face_encodings(image)
+
+#             if face_encodings:
+#                 # Convert the face encoding into bytes to store in the database
+#                 face_encoding_bytes = face_encodings[0].tobytes()
+
+#                 # Update employee with the generated face encoding
+#                 employee.face_encoding = face_encoding_bytes
+#                 employee.save()
+
+#                 print(f"Face encoding saved for {employee.name}")
+#             else:
+#                 print(f"No face found for {employee.name}")
+
+#         except Exception as e:
+#             print(f"Error processing image for {employee.name}: {e}")
+
+#     return JsonResponse({"message": "Face encodings generated and stored."})
+
+# multiple face encoding
 def generate_and_store_face_encoding(request):
     employees = Employee.objects.all()
 
     for employee in employees:
         try:
-            # Assuming 'image' is the file field of Employee model
-            image_path = employee.image.path
-            # Load the image from the file path
-            image = face_recognition.load_image_file(image_path)
+            # Get all 5 training images for each employee
+            image_paths = [
+                employee.image.path,  # Main image
+                employee.image2.path, # Add these fields to Employee model
+                employee.image3.path,
+                employee.image4.path, 
+                employee.image5.path
+            ]
+            
+            all_encodings = []
+            for image_path in image_paths:
+                image = face_recognition.load_image_file(image_path)
+                face_encodings = face_recognition.face_encodings(image)
+                
+                if face_encodings:
+                    all_encodings.append(face_encodings[0])
 
-            # Generate face encodings for the image (assuming one face per image)
-            face_encodings = face_recognition.face_encodings(image)
-
-            if face_encodings:
-                # Convert the face encoding into bytes to store in the database
-                face_encoding_bytes = face_encodings[0].tobytes()
-
-                # Update employee with the generated face encoding
+            if all_encodings:
+                # Store average encoding of all 5 images
+                average_encoding = np.mean(all_encodings, axis=0)
+                face_encoding_bytes = average_encoding.tobytes()
+                
                 employee.face_encoding = face_encoding_bytes
                 employee.save()
-
-                print(f"Face encoding saved for {employee.name}")
-            else:
-                print(f"No face found for {employee.name}")
+                print(f"Multiple face encodings averaged and saved for {employee.name}")
 
         except Exception as e:
-            print(f"Error processing image for {employee.name}: {e}")
+            print(f"Error processing images for {employee.name}: {e}")
 
-    return JsonResponse({"message": "Face encodings generated and stored."})
+    return JsonResponse({"message": "Multi-image face encodings generated and stored."})
+
 
 def attendance_view(request):
     return render(request, 'attendance/attendance.html')
