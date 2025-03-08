@@ -9,70 +9,42 @@ import os
 # admin.site.register(Employee)
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
+    # Columns to display in the list view
     list_display = (
         'id', 
         'name', 
         'emp_id', 
-        'display_image',
-        'display_image2',
-        'display_image3',
-        'display_image4',
-        'display_image5',
+        'display_image', 
     )
     
+    # Columns that can be used to search
     search_fields = ('name', 'emp_id')
+    
+    # Filters on the right side of the admin page
     list_filter = ('id',)
     
+    # Custom method to display image thumbnail
     def display_image(self, obj):
+        # print(f"EmployeeAdmin : {obj.image}")
         if obj.image:
             return mark_safe(f'<a href="{obj.image.url}" target="_blank"><img src="{obj.image.url}" width="100" height="100" /></a>')
         return 'No Image'
     
     display_image.short_description = 'Image'
-    display_image.allow_tags = True    
-    
-    def display_image2(self, obj):
-        if obj.image2:
-            return mark_safe(f'<a href="{obj.image2.url}" target="_blank"><img src="{obj.image2.url}" width="100" height="100" /></a>')
-        return 'No Image'
-    
-    display_image2.short_description = 'Image2'
-    display_image2.allow_tags = True
-    
-    def display_image3(self, obj):
-        if obj.image3:
-            return mark_safe(f'<a href="{obj.image3.url}" target="_blank"><img src="{obj.image3.url}" width="100" height="100" /></a>')
-        return 'No Image'
-    
-    display_image3.short_description = 'Image3'
-    display_image3.allow_tags = True    
-    
-    def display_image4(self, obj):
-        if obj.image4:
-            return mark_safe(f'<a href="{obj.image4.url}" target="_blank"><img src="{obj.image4.url}" width="100" height="100" /></a>')
-        return 'No Image'
-    
-    display_image4.short_description = 'Image4'
-    display_image4.allow_tags = True
-    
-    def display_image5(self, obj):
-        if obj.image5:
-            return mark_safe(f'<a href="{obj.image5.url}" target="_blank"><img src="{obj.image5.url}" width="100" height="100" /></a>')
-        return 'No Image'
-    
-    display_image5.short_description = 'Image5'
-    display_image5.allow_tags = True
+    display_image.allow_tags = True
 
+    # Customize the form
     fieldsets = (
         ('Personal Information', {
-            'fields': ('name', 'emp_id')
+            'fields': ('name', 'emp_id', 'image')
         }),
-        ('Images', {
-            'fields': ('image', 'image2', 'image3', 'image4', 'image5')
-        }),
+        # Add more fieldsets as needed
     )
 
+    # Number of items per page
     list_per_page = 20
+
+    # Actions that can be performed on multiple selected rows
     actions = ['generate_face_encoding']
 
     def generate_face_encoding(self, request, queryset):
@@ -82,6 +54,7 @@ class EmployeeAdmin(admin.ModelAdmin):
             except Exception as e:
                 self.message_user(request, f"Error generating face encoding for {employee.name}: {str(e)}")
     generate_face_encoding.short_description = "Generate Face Encoding"
+
 
 
 # admin.site.register(Attendance)

@@ -24,7 +24,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PREDICTOR_PATH = os.path.join(BASE_DIR, "shape_predictor_68_face_landmarks.dat")
 
 # Face Recognition Configuration
-FACE_RECOGNITION_TOLERANCE = 0.4  # Adjustable tolerance
+FACE_RECOGNITION_TOLERANCE = 0.45  # Adjustable tolerance
 MIN_FACE_MATCHES = 1  # Minimum number of face matches required
 
 class FaceAttendanceSystem:
@@ -94,75 +94,38 @@ class FaceAttendanceSystem:
                 except Exception as e:
                     logger.error(f"Error loading face encoding for {employee.name}: {e}")
 
-# single face recognition
-    # def recognize_faces(self, frame):
-    #     """Advanced face recognition method"""
-    #     # Preprocess frame
-    #     preprocessed_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-    #     # Detect faces
-    #     face_locations = face_recognition.face_locations(preprocessed_frame)
-    #     face_encodings = face_recognition.face_encodings(preprocessed_frame, face_locations)
-
-    #     recognized_faces = []
-
-    #     for face_encoding, face_location in zip(face_encodings, face_locations):
-    #         # Compare faces with custom tolerance
-    #         matches = face_recognition.compare_faces(
-    #             self.known_face_encodings, 
-    #             face_encoding, 
-    #             tolerance=FACE_RECOGNITION_TOLERANCE
-    #         )
-
-    #         # Compute face distances
-    #         face_distances = face_recognition.face_distance(
-    #             self.known_face_encodings, 
-    #             face_encoding
-    #         )
-
-    #         # Find best match
-    #         best_match_index = np.argmin(face_distances) if len(face_distances) > 0 else -1
-
-    #         if best_match_index != -1 and matches[best_match_index]:
-    #             name = self.known_face_names[best_match_index]
-    #             employee_id = self.employee_ids[best_match_index]
-    #             recognized_faces.append((name, employee_id, face_location))
-
-    #     return recognized_faces
-
-# multiple face recognition
     def recognize_faces(self, frame):
-        """Enhanced face recognition with multiple angle matching"""
+        """Advanced face recognition method"""
+        # Preprocess frame
         preprocessed_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         
-        # Detect faces with different angles
-        face_locations = face_recognition.face_locations(preprocessed_frame, model="cnn")
+        # Detect faces
+        face_locations = face_recognition.face_locations(preprocessed_frame)
         face_encodings = face_recognition.face_encodings(preprocessed_frame, face_locations)
 
         recognized_faces = []
 
         for face_encoding, face_location in zip(face_encodings, face_locations):
-            # Use stricter matching criteria
+            # Compare faces with custom tolerance
             matches = face_recognition.compare_faces(
                 self.known_face_encodings, 
                 face_encoding, 
                 tolerance=FACE_RECOGNITION_TOLERANCE
             )
-            
+
+            # Compute face distances
             face_distances = face_recognition.face_distance(
                 self.known_face_encodings, 
                 face_encoding
             )
 
-            if len(face_distances) > 0:
-                best_match_index = np.argmin(face_distances)
-                confidence = 1 - face_distances[best_match_index]
-                
-                # Only accept matches with high confidence
-                if matches[best_match_index] and confidence > 0.6:
-                    name = self.known_face_names[best_match_index]
-                    employee_id = self.employee_ids[best_match_index]
-                    recognized_faces.append((name, employee_id, face_location))
+            # Find best match
+            best_match_index = np.argmin(face_distances) if len(face_distances) > 0 else -1
+
+            if best_match_index != -1 and matches[best_match_index]:
+                name = self.known_face_names[best_match_index]
+                employee_id = self.employee_ids[best_match_index]
+                recognized_faces.append((name, employee_id, face_location))
 
         return recognized_faces
 
@@ -196,7 +159,7 @@ class FaceAttendanceSystem:
                 date=timezone.now().date(),
                 time_in__isnull=False
             ).first()
-        
+           
             if existing_attendance:
                 logger.info(f"Attendance already marked for employee ID: {employee_id}")
                 return None
@@ -208,7 +171,7 @@ class FaceAttendanceSystem:
                 date=timezone.now().date(),
                 image_path=f"attendance_images/{filename}"  # Store relative path
             )
-        
+           
             logger.info(f"Attendance marked for employee ID: {employee_id}, Image saved: {filename}")
             return attendance
 
@@ -313,73 +276,35 @@ def live_feed_page(request):
     return render(request, 'attendance/live_feed.html')
 
 # single face encoding
-# def generate_and_store_face_encoding(request):
-#     employees = Employee.objects.all()
-
-#     for employee in employees:
-#         try:
-#             # Assuming 'image' is the file field of Employee model
-#             image_path = employee.image.path
-#             # Load the image from the file path
-#             image = face_recognition.load_image_file(image_path)
-
-#             # Generate face encodings for the image (assuming one face per image)
-#             face_encodings = face_recognition.face_encodings(image)
-
-#             if face_encodings:
-#                 # Convert the face encoding into bytes to store in the database
-#                 face_encoding_bytes = face_encodings[0].tobytes()
-
-#                 # Update employee with the generated face encoding
-#                 employee.face_encoding = face_encoding_bytes
-#                 employee.save()
-
-#                 print(f"Face encoding saved for {employee.name}")
-#             else:
-#                 print(f"No face found for {employee.name}")
-
-#         except Exception as e:
-#             print(f"Error processing image for {employee.name}: {e}")
-
-#     return JsonResponse({"message": "Face encodings generated and stored."})
-
-# multiple face encoding
 def generate_and_store_face_encoding(request):
     employees = Employee.objects.all()
 
     for employee in employees:
         try:
-            # Get all 5 training images for each employee
-            image_paths = [
-                employee.image.path,  # Main image
-                employee.image2.path, # Add these fields to Employee model
-                employee.image3.path,
-                employee.image4.path, 
-                employee.image5.path
-            ]
-            
-            all_encodings = []
-            for image_path in image_paths:
-                image = face_recognition.load_image_file(image_path)
-                face_encodings = face_recognition.face_encodings(image)
-                
-                if face_encodings:
-                    all_encodings.append(face_encodings[0])
+            # Assuming 'image' is the file field of Employee model
+            image_path = employee.image.path
+            # Load the image from the file path
+            image = face_recognition.load_image_file(image_path)
 
-            if all_encodings:
-                # Store average encoding of all 5 images
-                average_encoding = np.mean(all_encodings, axis=0)
-                face_encoding_bytes = average_encoding.tobytes()
-                
+            # Generate face encodings for the image (assuming one face per image)
+            face_encodings = face_recognition.face_encodings(image)
+
+            if face_encodings:
+                # Convert the face encoding into bytes to store in the database
+                face_encoding_bytes = face_encodings[0].tobytes()
+
+                # Update employee with the generated face encoding
                 employee.face_encoding = face_encoding_bytes
                 employee.save()
-                print(f"Multiple face encodings averaged and saved for {employee.name}")
+
+                print(f"Face encoding saved for {employee.name}")
+            else:
+                print(f"No face found for {employee.name}")
 
         except Exception as e:
-            print(f"Error processing images for {employee.name}: {e}")
+            print(f"Error processing image for {employee.name}: {e}")
 
-    return JsonResponse({"message": "Multi-image face encodings generated and stored."})
-
+    return JsonResponse({"message": "Face encodings generated and stored."})
 
 def attendance_view(request):
     return render(request, 'attendance/attendance.html')
