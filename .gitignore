@@ -15,14 +15,15 @@ venv/
 env/
 ENV/
 
-# Ignore Media files
-# FaceAttendance/media/employees/*
-# FaceAttendance/media/attendance_images/*
-
 # Ignore Django admin cache
+FaceAttendance/attendance/__pycache__/*
 */__pycache__/*
-**/__pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
-FaceAttendance/attendance/__pycache__/*
+
+# Ignore Media files
+# FaceAttendance/media/employees/*
+# FaceAttendance/media/attendance_images/*
+*/FaceAttendance/attendance/__pycache__/*.pyc
+FaceAttendance/attendance/__pycache__/admin.cpython-313.pyc
