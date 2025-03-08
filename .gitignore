@@ -26,3 +26,4 @@ htmlcov/
 # FaceAttendance/media/employees/*
 # FaceAttendance/media/attendance_images/*
 */FaceAttendance/attendance/__pycache__/*.pyc
+FaceAttendance/attendance/__pycache__/admin.cpython-313.pyc

@@ -24,7 +24,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PREDICTOR_PATH = os.path.join(BASE_DIR, "shape_predictor_68_face_landmarks.dat")
 
 # Face Recognition Configuration
-FACE_RECOGNITION_TOLERANCE = 0.45  # Adjustable tolerance
+FACE_RECOGNITION_TOLERANCE = 0.4  # Adjustable tolerance
 MIN_FACE_MATCHES = 1  # Minimum number of face matches required
 
 class FaceAttendanceSystem:
@@ -146,7 +146,7 @@ class FaceAttendanceSystem:
             matches = face_recognition.compare_faces(
                 self.known_face_encodings, 
                 face_encoding, 
-                tolerance=0.4  # Reduced tolerance for higher accuracy
+                tolerance=FACE_RECOGNITION_TOLERANCE
             )
             
             face_distances = face_recognition.face_distance(
@@ -167,54 +167,54 @@ class FaceAttendanceSystem:
         return recognized_faces
 
 
-        def mark_attendance(self, employee_id, frame, face_location):
-            """Mark attendance for recognized employee and save face image"""
-            try:
-                # Modify the save path to be at the root of the project
-                # save_path = os.path.join(BASE_DIR, "media", "attendance_images") # old path 
-                save_path = os.path.join("media", "attendance_images") # use root media folder
-                os.makedirs(save_path, exist_ok=True)
+    def mark_attendance(self, employee_id, frame, face_location):
+        """Mark attendance for recognized employee and save face image"""
+        try:
+            # Modify the save path to be at the root of the project
+            # save_path = os.path.join(BASE_DIR, "media", "attendance_images") # old path 
+            save_path = os.path.join("media", "attendance_images") # use root media folder
+            os.makedirs(save_path, exist_ok=True)
 
-                # Extract face region
-                top, right, bottom, left = face_location
-                face_image = frame[top:bottom, left:right]
+            # Extract face region
+            top, right, bottom, left = face_location
+            face_image = frame[top:bottom, left:right]
 
-                # Define image filename
-                filename = f"{employee_id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-                image_path = os.path.join(save_path, filename)
+            # Define image filename
+            filename = f"{employee_id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            image_path = os.path.join(save_path, filename)
 
-                # Save the face image
-                cv2.imwrite(image_path, face_image)
+            # Save the face image
+            cv2.imwrite(image_path, face_image)
 
-                # Fetch the Employee instance
-                employee = Employee.objects.get(id=employee_id)  
-                print(f"Employee: {employee}")
+            # Fetch the Employee instance
+            employee = Employee.objects.get(id=employee_id)  
+            print(f"Employee: {employee}")
 
-                # Check if attendance already exists
-                existing_attendance = Attendance.objects.filter(
-                    employee=employee,
-                    date=timezone.now().date(),
-                    time_in__isnull=False
-                ).first()
-            
-                if existing_attendance:
-                    logger.info(f"Attendance already marked for employee ID: {employee_id}")
-                    return None
-
-                # Save attendance with image path
-                attendance = Attendance.objects.create(
-                    employee=employee,
-                    time_in=timezone.now(),
-                    date=timezone.now().date(),
-                    image_path=f"attendance_images/{filename}"  # Store relative path
-                )
-            
-                logger.info(f"Attendance marked for employee ID: {employee_id}, Image saved: {filename}")
-                return attendance
-
-            except Exception as e:
-                logger.error(f"Attendance marking error: {e}")
+            # Check if attendance already exists
+            existing_attendance = Attendance.objects.filter(
+                employee=employee,
+                date=timezone.now().date(),
+                time_in__isnull=False
+            ).first()
+        
+            if existing_attendance:
+                logger.info(f"Attendance already marked for employee ID: {employee_id}")
                 return None
+
+            # Save attendance with image path
+            attendance = Attendance.objects.create(
+                employee=employee,
+                time_in=timezone.now(),
+                date=timezone.now().date(),
+                image_path=f"attendance_images/{filename}"  # Store relative path
+            )
+        
+            logger.info(f"Attendance marked for employee ID: {employee_id}, Image saved: {filename}")
+            return attendance
+
+        except Exception as e:
+            logger.error(f"Attendance marking error: {e}")
+            return None
 
 
 # Global instance of face attendance system
